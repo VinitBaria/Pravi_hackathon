@@ -1,39 +1,18 @@
-import { MongoClient } from 'mongodb';
+const { MongoClient } = require('mongodb');
 
 const uri = process.env.MONGODB_URI || 'mongodb+srv://vinitbaria2006_db_user:pwCA97wnGwoueZbj@cluster1.2f2vsux.mongodb.net/roadworks?retryWrites=true&w=majority&appName=Cluster1';
-const options = {};
 
-let client;
-let clientPromise;
-
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
-  }
-  clientPromise = global._mongoClientPromise;
-} else {
-  // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
-
-export async function getDb() {
-  const client = await clientPromise;
+async function seed() {
+  console.log('Connecting to MongoDB Atlas at:', uri.replace(/:([^:@]+)@/, ':****@'));
+  const client = new MongoClient(uri);
+  await client.connect();
   const db = client.db('roadworks');
-  
-  // Seed initial data if empty
-  const projectCount = await db.collection('projects').countDocuments();
-  if (projectCount === 0) {
-    await seedMongo(db);
-  }
-  
-  return db;
-}
 
-async function seedMongo(db) {
+  console.log('Clearing existing collections...');
+  await db.collection('projects').deleteMany({});
+  await db.collection('bridges').deleteMany({});
+  await db.collection('documents').deleteMany({});
+
   const projects = [
     {
       id: 'PRJ-875',
@@ -483,8 +462,77 @@ async function seedMongo(db) {
     }
   ];
 
+  const documents = [
+    {
+      project_id: 'PRJ-875',
+      step_key: '1',
+      role: 'admin',
+      doc_name: 'Initial Request & DPR Brief.pdf',
+      file_path: '/uploads/sample-req.pdf',
+      notes: 'Initial sanction and administrative clearance for new complex.',
+      created_at: new Date('2025-01-10').toISOString()
+    },
+    {
+      project_id: 'PRJ-875',
+      step_key: '2',
+      role: 'engineer',
+      doc_name: 'Structural_Engineering_Assessment.pdf',
+      file_path: '/uploads/sample-eng.pdf',
+      notes: 'Foundation soil bearing capacity verified. Seismic Zone IV compliance affirmed.',
+      created_at: new Date('2025-01-20').toISOString()
+    },
+    {
+      project_id: 'PRJ-875',
+      step_key: '9',
+      role: 'procurement',
+      doc_name: 'Letter_of_Acceptance_LOA.pdf',
+      file_path: '/uploads/sample-loa.pdf',
+      notes: 'Awarded to Shreeji Mega Structures Pvt Ltd at lowest evaluated bid.',
+      created_at: new Date('2025-04-10').toISOString()
+    },
+    {
+      project_id: 'PRJ-875',
+      step_key: '13',
+      role: 'qc',
+      doc_name: 'Final_QC_Certificate.pdf',
+      file_path: '/uploads/sample-qc.pdf',
+      notes: 'Concrete core testing and non-destructive rebound tests meet standard specs.',
+      created_at: new Date('2025-12-18').toISOString()
+    },
+    {
+      project_id: 'PRJ-001',
+      step_key: '1',
+      role: 'admin',
+      doc_name: 'NH48_Widening_Sanction_Order.pdf',
+      file_path: '/uploads/nh48-sanction.pdf',
+      notes: 'Cabinet approval for NH-48 6-laning project.',
+      created_at: new Date('2025-03-12').toISOString()
+    },
+    {
+      project_id: 'PRJ-001',
+      step_key: '9',
+      role: 'procurement',
+      doc_name: 'Work_Order_Contract_Patel.pdf',
+      file_path: '/uploads/patel-work-order.pdf',
+      notes: 'Contract EPC signed with Patel Highway Consortium.',
+      created_at: new Date('2025-06-01').toISOString()
+    }
+  ];
+
   await db.collection('projects').insertMany(projects);
   await db.collection('bridges').insertMany(bridges);
-  console.log('MongoDB Seeded Successfully.');
+  await db.collection('documents').insertMany(documents);
+
+  console.log(`Successfully seeded:`);
+  console.log(`- ${projects.length} Projects`);
+  console.log(`- ${bridges.length} Bridges`);
+  console.log(`- ${documents.length} Documents`);
+
+  await client.close();
+  console.log('Done!');
 }
 
+seed().catch(err => {
+  console.error('Seed Error:', err);
+  process.exit(1);
+});
